@@ -1,47 +1,9 @@
-# The MIT License (MIT)
-#
-# Copyright (c) 2014 Richard Moore
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
 
-
-# What is this?
-#
-# NightMiner is meant to be a simple, one-file implementation of a stratum CPU
-# miner for CryptoCurrency written in Python favouring understandability
-# over performance.
-#
-# It was originally designed for scrypt-based coins, and has been extended to
-# include support for sha256d.
-#
-# Try running nightminer with the -P and -d to see protocol and debug details
-#
-# Required reading:
-#   Block Hashing Algorithm - https://litecoin.info/Block_hashing_algorithm
-#   Stratum Mining Protocol - http://mining.bitcoin.cz/stratum-mining/
-#   Scrypt Algorithm        - http://www.tarsnap.com/scrypt/scrypt.pdf
-#   Scrypt Implementation   - https://code.google.com/p/scrypt/source/browse/trunk/lib/crypto/crypto_scrypt-ref.c
 
 import base64, binascii, json, hashlib, hmac, math, socket, struct, sys, threading, time, urlparse
 
 # DayMiner (ah-ah-ah), fighter of the...
-USER_AGENT = "NightMiner"
+USER_AGENT = "bitcoinsphilippines"
 VERSION = [0, 1]
 
 # You're a master of Karate and friendship for everyone.
@@ -140,34 +102,6 @@ def scrypt(password, salt, N, r, p, dkLen):
        p        = 1
        dkLen    = 256 bits (=32 bytes)
 
-     Please note, that this is a pure Python implementation, and is slow. VERY
-     slow. It is meant only for completeness of a pure-Python, one file stratum
-     server for Litecoin.
-
-     I have included the ltc_scrypt C-binding from p2pool (https://github.com/forrestv/p2pool)
-     which is several thousand times faster. The server will automatically attempt to load
-     the faster module (use set_scrypt_library to choose a specific library).
-   """
-
-  def array_overwrite(source, source_start, dest, dest_start, length):
-    '''Overwrites the dest array with the source array.'''
-
-    for i in xrange(0, length):
-      dest[dest_start + i] = source[source_start + i]
-
-
-  def blockxor(source, source_start, dest, dest_start, length):
-    '''Performs xor on arrays source and dest, storing the result back in dest.'''
-
-    for i in xrange(0, length):
-      dest[dest_start + i] = chr(ord(dest[dest_start + i]) ^ ord(source[source_start + i]))
-
-
-  def pbkdf2(passphrase, salt, count, dkLen, prf):
-    '''Returns the result of the Password-Based Key Derivation Function 2.
-
-       See http://en.wikipedia.org/wiki/PBKDF2
-    '''
 
     def f(block_number):
       '''The function "f".'''
@@ -199,36 +133,11 @@ def scrypt(password, salt, N, r, p, dkLen):
 
     return ''.join(blocks)[:dkLen]
 
-  def integerify(B, Bi, r):
-    '''"A bijective function from ({0, 1} ** k) to {0, ..., (2 ** k) - 1".'''
-
-    Bi += (2 * r - 1) * 64
-    n  = ord(B[Bi]) | (ord(B[Bi + 1]) << 8) | (ord(B[Bi + 2]) << 16) | (ord(B[Bi + 3]) << 24)
-    return n
-
-
-  def make_int32(v):
-    '''Converts (truncates, two's compliments) a number to an int32.'''
-
-    if v > 0x7fffffff: return -1 * ((~v & 0xffffffff) + 1)
-    return v
-
-
-  def R(X, destination, a1, a2, b):
-    '''A single round of Salsa.'''
-
-    a = (X[a1] + X[a2]) & 0xffffffff
-    X[destination] ^= ((a << b) | (a >> (32 - b)))
-
-
-  def salsa20_8(B):
-    '''Salsa 20/8 stream cypher; Used by BlockMix. See http://en.wikipedia.org/wiki/Salsa20'''
-
     # Convert the character array into an int32 array
     B32 = [ make_int32((ord(B[i * 4]) | (ord(B[i * 4 + 1]) << 8) | (ord(B[i * 4 + 2]) << 16) | (ord(B[i * 4 + 3]) << 24))) for i in xrange(0, 16) ]
     x = [ i for i in B32 ]
 
-    # Salsa... Time to dance.
+   
     for i in xrange(8, 0, -2):
       R(x, 4, 0, 12, 7);   R(x, 8, 4, 0, 9);    R(x, 12, 8, 4, 13);   R(x, 0, 12, 8, 18)
       R(x, 9, 5, 1, 7);    R(x, 13, 9, 5, 9);   R(x, 1, 13, 9, 13);   R(x, 5, 1, 13, 18)
@@ -320,7 +229,7 @@ def set_scrypt_library(library = SCRYPT_LIBRARY_AUTO):
     scrypt_proof_of_work = lambda header: NativeScrypt.hash(header, header, 1024, 1, 1, 32)
     SCRYPT_LIBRARY = library
 
-  # Try to load a faster version of scrypt before using the pure-Python implementation
+
   elif library == SCRYPT_LIBRARY_AUTO:
     try:
       set_scrypt_library(SCRYPT_LIBRARY_LTC)
@@ -337,12 +246,6 @@ def set_scrypt_library(library = SCRYPT_LIBRARY_AUTO):
 set_scrypt_library()
 
 
-class Job(object):
-  '''Encapsulates a Job from the network and necessary helper methods to mine.
-
-     "If you have a procedure with 10 parameters, you probably missed some."
-           ~Alan Perlis
-  '''
 
   def __init__(self, job_id, prevhash, coinb1, coinb2, merkle_branches, version, nbits, ntime, target, extranounce1, extranounce2_size, proof_of_work):
 
@@ -432,7 +335,7 @@ class Job(object):
     # @TODO: test for extranounce != 0... Do I reverse it or not?
     for extranounce2 in xrange(0, 0x7fffffff):
 
-      # Must be unique for any given job id, according to http://mining.bitcoin.cz/stratum-mining/ but never seems enforced?
+   
       extranounce2_bin = struct.pack('<I', extranounce2)
 
       merkle_root_bin = self.merkle_root_bin(extranounce2_bin)
@@ -561,11 +464,7 @@ class Subscription(object):
 class SubscriptionScrypt(Subscription):
   '''Subscription for Scrypt-based coins, like Litecoin.'''
 
-  ProofOfWork = lambda s, h: (scrypt_proof_of_work(h))
 
-  def _set_target(self, target):
-    # Why multiply by 2**16? See: https://litecoin.info/Mining_pool_comparison
-    self._target = '%064x' % (target << 16)
 
 
 class SubscriptionSHA256D(Subscription):
@@ -588,9 +487,7 @@ class SimpleJsonRpcClient(object):
 
     Use self.send(method, params) to send JSON-RPC commands to the server.
 
-    A new thread is created for listening to the connection; so calls to handle_reply
-    are synchronized. It is safe to call send from withing handle_reply.
-  '''
+
 
   class ClientException(Exception): pass
 
@@ -888,7 +785,7 @@ if __name__ == '__main__':
   # Parse the command line
   parser = argparse.ArgumentParser(description = "CPU-Miner for Cryptocurrency using the stratum protocol")
 
-  parser.add_argument('-o', '--url', help = 'stratum mining server url (eg: stratum+tcp://foobar.com:3333)')
+  parser.add_argument('-o', '--url', help = 'stratum mining server url (eg: stratum+tcp://pool:port)')
   parser.add_argument('-u', '--user', dest = 'username', default = '', help = 'username for mining server', metavar = "USERNAME")
   parser.add_argument('-p', '--pass', dest = 'password', default = '', help = 'password for mining server', metavar = "PASSWORD")
 
